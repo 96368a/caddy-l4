@@ -15,10 +15,13 @@
 package layer4
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"github.com/caddyserver/caddy/v2/modules/caddytls"
 	"net"
 	"net/netip"
+	"regexp"
 
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
@@ -30,6 +33,7 @@ func init() {
 	caddy.RegisterModule(&MatchRemoteIP{})
 	caddy.RegisterModule(&MatchLocalIP{})
 	caddy.RegisterModule(&MatchNot{})
+	caddy.RegisterModule(MatchSNIRegexp{})
 }
 
 // ConnMatcher is a type that can match a connection.
@@ -387,18 +391,84 @@ func (m *MatchNot) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	return nil
 }
 
+// MatchSNIRegexp matches the SNI (Server Name Indication) field
+// against regular expressions
+type MatchSNIRegexp struct {
+	// The regular expressions to match against
+	Patterns []string `json:"patterns,omitempty"`
+
+	// Compiled regular expressions
+	regexps []*regexp.Regexp
+	logger  *zap.Logger
+}
+
+// CaddyModule returns the Caddy module information.
+func (MatchSNIRegexp) CaddyModule() caddy.ModuleInfo {
+	return caddy.ModuleInfo{
+		ID:  "tls.handshake_match.sni_regexp",
+		New: func() caddy.Module { return new(MatchSNIRegexp) },
+	}
+}
+
+// Provision compiles the regular expressions.
+func (m *MatchSNIRegexp) Provision(ctx caddy.Context) error {
+	m.logger = ctx.Logger()
+
+	for _, pattern := range m.Patterns {
+		regexp, err := regexp.Compile(pattern)
+		if err != nil {
+			return fmt.Errorf("compiling regexp pattern '%s': %v", pattern, err)
+		}
+		m.regexps = append(m.regexps, regexp)
+	}
+	return nil
+}
+
+// Match matches the SNI field against the configured regular expressions.
+func (m MatchSNIRegexp) Match(hello *tls.ClientHelloInfo) bool {
+	if hello.ServerName == "" {
+		return false
+	}
+
+	for _, regexp := range m.regexps {
+		if regexp.MatchString(hello.ServerName) {
+			return true
+		}
+	}
+	return false
+}
+
+// UnmarshalCaddyfile sets up the matcher from Caddyfile tokens. Syntax:
+//
+//	sni_regexp <pattern...>
+func (m *MatchSNIRegexp) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
+	for d.Next() {
+		if d.NextArg() {
+			m.Patterns = append(m.Patterns, d.Val())
+		}
+		if d.NextBlock(d.Nesting()) {
+			return d.Err("block not allowed for sni_regexp matcher")
+		}
+	}
+	return nil
+}
+
 // Interface guards
 var (
-	_ caddy.Module          = (*MatchRemoteIP)(nil)
-	_ ConnMatcher           = (*MatchRemoteIP)(nil)
-	_ caddy.Provisioner     = (*MatchRemoteIP)(nil)
-	_ caddyfile.Unmarshaler = (*MatchRemoteIP)(nil)
-	_ caddy.Module          = (*MatchLocalIP)(nil)
-	_ ConnMatcher           = (*MatchLocalIP)(nil)
-	_ caddy.Provisioner     = (*MatchLocalIP)(nil)
-	_ caddyfile.Unmarshaler = (*MatchLocalIP)(nil)
-	_ caddy.Module          = (*MatchNot)(nil)
-	_ caddy.Provisioner     = (*MatchNot)(nil)
-	_ ConnMatcher           = (*MatchNot)(nil)
-	_ caddyfile.Unmarshaler = (*MatchNot)(nil)
+	_ caddy.Module               = (*MatchRemoteIP)(nil)
+	_ ConnMatcher                = (*MatchRemoteIP)(nil)
+	_ caddy.Provisioner          = (*MatchRemoteIP)(nil)
+	_ caddyfile.Unmarshaler      = (*MatchRemoteIP)(nil)
+	_ caddy.Module               = (*MatchLocalIP)(nil)
+	_ ConnMatcher                = (*MatchLocalIP)(nil)
+	_ caddy.Provisioner          = (*MatchLocalIP)(nil)
+	_ caddyfile.Unmarshaler      = (*MatchLocalIP)(nil)
+	_ caddy.Module               = (*MatchNot)(nil)
+	_ caddy.Provisioner          = (*MatchNot)(nil)
+	_ ConnMatcher                = (*MatchNot)(nil)
+	_ caddyfile.Unmarshaler      = (*MatchNot)(nil)
+	_ caddy.Module               = (*MatchSNIRegexp)(nil)
+	_ caddy.Provisioner          = (*MatchSNIRegexp)(nil)
+	_ caddytls.ConnectionMatcher = (*MatchSNIRegexp)(nil)
+	_ caddyfile.Unmarshaler      = (*MatchSNIRegexp)(nil)
 )
