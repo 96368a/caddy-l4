@@ -405,7 +405,7 @@ type MatchSNIRegexp struct {
 // CaddyModule returns the Caddy module information.
 func (MatchSNIRegexp) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
-		ID:  "tls.handshake_match.sni_regexp",
+		ID:  "layer4.matchers.sni_regexp",
 		New: func() caddy.Module { return new(MatchSNIRegexp) },
 	}
 }
