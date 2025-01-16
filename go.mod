@@ -1,4 +1,4 @@
-module github.com/mholt/caddy-l4
+module github.com/96368a/caddy-l4
 
 go 1.22.0
 
@@ -8,6 +8,7 @@ require (
 	github.com/caddyserver/caddy/v2 v2.8.4
 	github.com/mastercactapus/proxyprotocol v0.0.4
 	github.com/miekg/dns v1.1.62
+	github.com/quic-go/quic-go v0.44.0
 	github.com/things-go/go-socks5 v0.0.5
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.28.0
@@ -91,7 +92,6 @@ require (
 	github.com/prometheus/common v0.48.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/quic-go/qpack v0.4.0 // indirect
-	github.com/quic-go/quic-go v0.44.0 // indirect
 	github.com/rs/xid v1.5.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
